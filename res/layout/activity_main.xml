@@ -8,5 +8,41 @@
         android:id="@+id/pager"
         android:layout_width="match_parent"
         android:layout_height="180dp"/>
+    
+    <Button
+        android:id="@+id/button1"
+        android:text="调整指示器外边距"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+    
+    <Button
+        android:id="@+id/button2"
+        android:text="增大指示器圆点间距"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+    
+    <Button
+        android:id="@+id/button3"
+        android:text="调整指示器位置到中间"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+    
+      <Button
+        android:id="@+id/button4"
+        android:text="减小指示器圆点大小"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+      
+      <Button
+        android:id="@+id/button5"
+        android:text="调整指示器圆点颜色"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+      
+      <Button
+        android:id="@+id/button6"
+        android:text="加快滚动速度"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 
 </LinearLayout>

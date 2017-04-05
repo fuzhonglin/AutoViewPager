@@ -5,7 +5,6 @@ import java.util.ArrayList;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Message;
@@ -18,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Interpolator;
 import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Scroller;
@@ -26,41 +26,39 @@ public class AutoViewPager extends RelativeLayout {
 	
 	private static final int NEXT = 100;//开始轮播的消息值
 	private ArrayList<ImageView> mList;//图片资源
+	private int mHeight = 0;//控件高度
 	
 	private LinearLayout mIndicator;//轮播指示器
 	private GradientDrawable mPointSelected;//轮播指示器的选中状态
 	private GradientDrawable mPointDefault;//轮播指示器的未选中状态
 	
-	private boolean isRunning = true;//是否自动轮播
+	private boolean mIsRunning = true;//是否自动轮播
 	private OnPagerClickListener mOnPagerClickListener;//图片点击事件的监听类
 	private int mDuration = 2000;//滚动的时间，默认为2秒
 	private ViewPager mViewPager;//用于展示轮播图的ViewPager
 	private int downX, downY, downTime; //条目被触摸时，按下的坐标以及时间
 	
 	//指示器的边距，默认为5dp
-	private int indicatorMargin = dip2px(5);
-	private int indicatorTop=indicatorMargin,indicatorBottom=indicatorMargin, 
-				indicatorLeft=indicatorMargin, indicatorRight=indicatorMargin;
+	private int mIndicatorTop=dip2px(5),mIndicatorBottom=dip2px(5),mIndicatorLeft=dip2px(5),mIndicatorRight=dip2px(5);
 	public static final int INDICATOR_LOCATION_CENTER = 101;//指示器位于底部居中
 	public static final int INDICATOR_LOCATION_LEFT = 102;//指示器位于左下角
 	public static final int INDICATOR_LOCATION_RIGHT = 103;//指示器位于右下角
-	private int indicatorLocation = INDICATOR_LOCATION_RIGHT;//指示器的当前位置，默认右下角
+	private int mIndicatorLocation = INDICATOR_LOCATION_RIGHT;//指示器的当前位置，默认右下角
 	
-	private int pointSize = dip2px(10);//指示器圆点的半径，默认为10dp
-	private int selectPointColor = Color.parseColor("#ff0000");//选中时指示器圆点颜色，默认为红色
-	private int defaultPointColor = Color.parseColor("#cccccc");//未选中时指示器圆点颜色，默认为灰色
-	//指示器圆点的外边距，默认为10dp
-	private int pointMargin = dip2px(10);
-	private int pointTop=pointMargin,pointBottom=pointMargin,pointLeft=pointMargin,pointRight=pointMargin;
+	private int mPointSize = dip2px(10);//指示器圆点的半径，默认为10dp
+	private int mSelectPointColor = 0xffff0000;//选中时指示器圆点颜色，默认为红色
+	private int mDefaultPointColor = 0xffcccccc;//未选中时指示器圆点颜色，默认为灰色
+	private int mPointInterval = dip2px(5);//指示器圆点间的间距，默认为5dp
 	
-	// 通过循环发送消息，实现自动轮播
-	@SuppressLint("HandlerLeak") 
+	//通过循环发送消息，实现自动轮播
 	private Handler handler = new Handler(){
 		@Override
 		public void handleMessage(Message msg) {
-			if(msg.what == NEXT && isRunning){
-				mViewPager.setCurrentItem(mViewPager.getCurrentItem()+1);
-				sendEmptyMessageDelayed(NEXT, 2000);
+			if(msg.what == NEXT && mIsRunning){
+				if(mViewPager!=null){
+					mViewPager.setCurrentItem(mViewPager.getCurrentItem()+1);
+					sendEmptyMessageDelayed(NEXT, 2000);
+				}
 			}
 		};
 	};
@@ -111,6 +109,21 @@ public class AutoViewPager extends RelativeLayout {
 	 */
 	public void setViewPagerScroller(int duration){
 		mDuration = duration;
+		if(mViewPager==null)return;
+		initViewPagerScroller();
+	}
+	
+	/**
+	 * 设置控件的高度
+	 * @param height
+	 * 		控件高度，单位为dp
+	 */
+	public void setAutoViewPagerHeight(int height){
+		mHeight = dip2px(height);
+		if(mViewPager==null)return;
+		LayoutParams params = (LayoutParams) mViewPager.getLayoutParams();
+		params.height = mHeight;
+		mViewPager.setLayoutParams(params);
 	}
 	
 	/**
@@ -125,10 +138,20 @@ public class AutoViewPager extends RelativeLayout {
 	 * 		距离右侧边距
 	 */
 	public void setIndicatorMargin(int top, int bottom, int left, int right){
-		indicatorTop = dip2px(top);
-		indicatorBottom = dip2px(bottom);
-		indicatorLeft = dip2px(left);
-		indicatorRight = dip2px(right);
+		mIndicatorTop = dip2px(top);
+		mIndicatorBottom = dip2px(bottom);
+		mIndicatorLeft = dip2px(left);
+		mIndicatorRight = dip2px(right);
+		
+		if(mIndicator==null)return;
+		LayoutParams params = (LayoutParams) mIndicator.getLayoutParams();
+		
+		params.topMargin = mIndicatorTop;
+		params.bottomMargin = mIndicatorBottom;
+		params.leftMargin = mIndicatorLeft;
+		params.rightMargin = mIndicatorRight;
+		
+		mIndicator.setLayoutParams(params);
 	}
 	
 	/**
@@ -139,7 +162,30 @@ public class AutoViewPager extends RelativeLayout {
 	 * 		INDICATOR_LOCATION_RIGHT：指示器位于右下角
 	 */
 	public void setIndicatorLocation(int location){
-		indicatorLocation = location;
+		mIndicatorLocation = location;
+		
+		if(mIndicator==null)return;
+		LayoutParams params = (LayoutParams) mIndicator.getLayoutParams();
+		
+		switch (mIndicatorLocation) {
+		case INDICATOR_LOCATION_LEFT:
+			params.removeRule(CENTER_HORIZONTAL);
+			params.removeRule(ALIGN_PARENT_RIGHT);
+			params.addRule(ALIGN_PARENT_LEFT); 
+			break;
+		case INDICATOR_LOCATION_CENTER:
+			params.removeRule(ALIGN_PARENT_LEFT);
+			params.removeRule(ALIGN_PARENT_RIGHT);
+			params.addRule(CENTER_HORIZONTAL); 
+			break;
+		case INDICATOR_LOCATION_RIGHT:
+			params.removeRule(CENTER_HORIZONTAL);
+			params.removeRule(ALIGN_PARENT_LEFT);
+			params.addRule(ALIGN_PARENT_RIGHT); 
+			break;
+		}
+		
+		mIndicator.setLayoutParams(params);
 	}
 	
 	/**
@@ -148,7 +194,11 @@ public class AutoViewPager extends RelativeLayout {
 	 * 		半径大小，单位为dp
 	 */
 	public void setPointSize(int size){
-		pointSize = dip2px(size);
+		mPointSize = dip2px(size);
+		
+		if(mPointSelected==null || mPointDefault==null) return;
+		mPointSelected.setSize(mPointSize, mPointSize);
+		mPointDefault.setSize(mPointSize, mPointSize);
 	}
 	
 	/**
@@ -159,46 +209,103 @@ public class AutoViewPager extends RelativeLayout {
 	 * 		未选中时的颜色
 	 */
 	public void setPointColor(int selectColor, int defaultColor){
-		selectPointColor = selectColor;
-		defaultPointColor = defaultColor;
+		mSelectPointColor = selectColor;
+		mDefaultPointColor = defaultColor;
+		
+		if(mPointSelected==null || mPointDefault==null) return;
+		mPointSelected.setColor(mSelectPointColor);
+		mPointDefault.setColor(mDefaultPointColor);
 	}
 	
-	/**
-	 * 设置指示器圆点的外边距，单位为dp
-	 * @param top 
-	 * 		距离顶部外边距
-	 * @param bottom 
-	 * 		距离底部外边距
-	 * @param left 
-	 * 		距离左侧外边距
-	 * @param right 
-	 * 		距离右侧外边距
-	 */
-	public void setPointMargin(int top, int bottom, int left, int right){
-		pointTop = dip2px(top);
-		pointBottom = dip2px(bottom);
-		pointLeft = dip2px(left);
-		pointRight = dip2px(right);
+	/**设置指示器圆点的间距，单位为dp*/
+	public void setPointInterval(int interval){
+		mPointInterval = dip2px(interval);
+		
+		if(mIndicator==null) return;
+		int count = mIndicator.getChildCount();
+		LinearLayout.LayoutParams params;
+		View child;
+		
+		for(int i=0; i<count; i++){
+			child = mIndicator.getChildAt(i);
+			params = (LinearLayout.LayoutParams)child.getLayoutParams();
+			
+			switch (mIndicatorLocation) {
+			case INDICATOR_LOCATION_LEFT:
+				if(i == 0){
+					params.leftMargin = 0;
+					params.rightMargin = mPointInterval;
+				}else{
+					params.leftMargin = mPointInterval;
+					params.rightMargin = mPointInterval;
+				}
+				break;
+				
+			case INDICATOR_LOCATION_CENTER:
+				params.leftMargin = mPointInterval;
+				params.rightMargin = mPointInterval;
+				break;
+					
+			case INDICATOR_LOCATION_RIGHT:
+				if(i == mList.size()-1){
+					params.leftMargin = mPointInterval;
+					params.rightMargin = 0;
+				}else{
+					params.leftMargin = mPointInterval;
+					params.rightMargin = mPointInterval;
+				}
+				break;
+			}
+			child.setLayoutParams(params);
+		}
 	}
 	
-	//dp换算为px
-	private int dip2px(float dip) {
-		float density = getContext().getResources().getDisplayMetrics().density;
-		return (int) (dip * density + 0.5f);
+	/**设置是否开启自动轮播*/
+	public void setIsAuto(boolean isAuto){
+		mIsRunning = isAuto;
+		if(isAuto){
+			startRoll();
+		}else{
+			stopRoll();
+		}
+	}
+	
+	/**开始自动轮播*/
+	public void startRoll(){
+		mIsRunning = true;
+		handler.sendEmptyMessageDelayed(NEXT, 2000);
+	}
+		
+	/**停止自动轮播*/
+	public void stopRoll(){
+		mIsRunning = false;
+		handler.removeMessages(NEXT);
 	}
 
-	//初始化用于显示轮播图的ViewPager
+	/**初始化用于显示轮播图的ViewPager*/
 	private void initViewPager() {
+		creatViewPager();
+		initViewPagerTouch();
+	}
+	
+	/**生成ViewPager*/
+	private void creatViewPager() {
+		
+		int with = LayoutParams.WRAP_CONTENT;
+		int height = (mHeight== 0? LayoutParams.WRAP_CONTENT : mHeight);
 		
 		//将ViewPager添加到当前控件中
 		mViewPager = new ViewPager(getContext());	
-		LayoutParams viewPagerParams = new RelativeLayout.LayoutParams(
-		LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+		LayoutParams viewPagerParams = new RelativeLayout.LayoutParams(with,height);
 		initViewPagerScroller(); //通过反射方式修改条目滚动速度
 		addView(mViewPager, viewPagerParams);
 		
 		mViewPager.setAdapter(new MyAdapter()); //为ViewPager设置适配器
 		mViewPager.setCurrentItem(100*mList.size()); //设置ViewPager的初始条目位置
+	}
+	
+	/**初始化ViewPager的触摸事件*/
+	private void initViewPagerTouch() {
 		mViewPager.setOnTouchListener(new OnTouchListener() {
 			@SuppressLint("ClickableViewAccessibility") @Override
 			public boolean onTouch(View v, MotionEvent event) {	
@@ -223,7 +330,6 @@ public class AutoViewPager extends RelativeLayout {
 					int disY = Math.abs(upY - downY);
 					int dis = disX -disY;
 					int disTime = upTime - downTime;
-					
 					//判断是否是点击事件，当是点击事件时，调用点击监听类中的方法
 					if(disTime<500 && dis<5){
 						if(mOnPagerClickListener!=null){
@@ -244,19 +350,130 @@ public class AutoViewPager extends RelativeLayout {
 			}
 		});
 	}
-	
-	//开始自动轮播
-	public void startRoll(){
-		isRunning = true;
-		handler.sendEmptyMessageDelayed(NEXT, 2000);
+
+	/**初始化轮播图的指示器*/
+	private void initIndicator() {
+		initPoint();
+		creatIndicator();
+		addPointToIndicator();
+		changeIndicatorState();
+	}
+
+	/**初始化指示器圆点*/
+	private void initPoint() {
+		//生成指示器的选中样式
+		mPointSelected = new GradientDrawable();
+		mPointSelected.setShape(GradientDrawable.OVAL);
+		mPointSelected.setColor(mSelectPointColor);
+		mPointSelected.setSize(mPointSize, mPointSize);
+					
+		//生成指示器的未选中样式
+		mPointDefault = new GradientDrawable();
+		mPointDefault.setShape(GradientDrawable.OVAL);
+		mPointDefault.setColor(mDefaultPointColor);
+		mPointDefault.setSize(mPointSize, mPointSize);
 	}
 	
-	//停止自动轮播
-	public void stopRoll(){
-		isRunning = false;
-		handler.removeMessages(NEXT);
+	/**生成指示器容器*/
+	private void creatIndicator() {
+		mIndicator = new LinearLayout(getContext());
+		mIndicator.setOrientation(LinearLayout.HORIZONTAL);
+		LayoutParams indicatorParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+		//设置指示器的位置
+		indicatorParams.addRule(ALIGN_PARENT_BOTTOM);
+		switch (mIndicatorLocation) {
+		case INDICATOR_LOCATION_LEFT:
+			indicatorParams.addRule(ALIGN_PARENT_LEFT);
+			break;
+
+		case INDICATOR_LOCATION_CENTER:
+			indicatorParams.addRule(CENTER_HORIZONTAL);
+			break;
+				
+		case INDICATOR_LOCATION_RIGHT:
+			indicatorParams.addRule(ALIGN_PARENT_RIGHT);
+			break;
+		}		
+		
+		//设置指示器的外边距
+		indicatorParams.topMargin = mIndicatorTop;
+		indicatorParams.bottomMargin = mIndicatorBottom;
+		indicatorParams.leftMargin = mIndicatorLeft;
+		indicatorParams.rightMargin = mIndicatorRight;	
+		
+		//将指示器加入当前控件中
+		addView(mIndicator, indicatorParams);
+	}
+
+	/**将圆点加入容器内*/
+	private void addPointToIndicator() {
+		int currentItem = mViewPager.getCurrentItem();
+		ImageView pointView;
+		for(int i=0; i<mList.size(); i++){
+			pointView = new ImageView(getContext());
+			if(i == currentItem){
+				pointView.setImageDrawable(mPointSelected);
+			}else{
+				pointView.setImageDrawable(mPointDefault);
+			}
+			
+			//设置圆点之间的间距
+			int with = LinearLayout.LayoutParams.WRAP_CONTENT;
+			int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(with, height);
+				
+			switch (mIndicatorLocation) {
+			case INDICATOR_LOCATION_LEFT:
+				if(i == 0){
+					params.leftMargin = 0;
+					params.rightMargin = mPointInterval;
+				}else{
+					params.leftMargin = mPointInterval;
+					params.rightMargin = mPointInterval;
+				}
+				break;
+
+			case INDICATOR_LOCATION_CENTER:
+				params.leftMargin = mPointInterval;
+				params.rightMargin = mPointInterval;
+				break;
+					
+			case INDICATOR_LOCATION_RIGHT:
+				if(i == mList.size()-1){
+					params.leftMargin = mPointInterval;
+					params.rightMargin = 0;
+				}else{
+					params.leftMargin = mPointInterval;
+					params.rightMargin = mPointInterval;
+				}
+				break;
+			}
+			mIndicator.addView(pointView, params);
+		}
 	}
 	
+	/**随着ViewPager的轮播修改指示器状态*/
+	private void changeIndicatorState() {
+		mViewPager.setOnPageChangeListener(new OnPageChangeListener() {
+			@Override
+			public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels){}
+			@Override
+			public void onPageScrollStateChanged(int state){}
+			@Override
+			public void onPageSelected(int position) {
+				position = position % mList.size();
+				for(int i=0; i<mList.size(); i++){
+					ImageView point = (ImageView) mIndicator.getChildAt(i);
+					if(i == position ){
+						point.setImageDrawable(mPointSelected);
+					}else{
+						point.setImageDrawable(mPointDefault);
+					}
+				}
+			}
+		});
+	}
+
 	//当控件添加到显示窗时，该方法会被调用，此时开启自动轮播
 	@Override
 	protected void onAttachedToWindow() {
@@ -271,7 +488,7 @@ public class AutoViewPager extends RelativeLayout {
 		stopRoll();
 	}
 	
-	//通过反射的方式修改ViewPager条目的滚动速度
+	/**通过反射的方式修改ViewPager条目的滚动速度*/
 	private void initViewPagerScroller() {
 		try {  
 	    	Field field = ViewPager.class.getDeclaredField("mScroller");  
@@ -284,8 +501,14 @@ public class AutoViewPager extends RelativeLayout {
 	    }  
 	}
 	
+	/**dp换算为px*/
+	private int dip2px(float dip) {
+		float density = getContext().getResources().getDisplayMetrics().density;
+		return (int) (dip * density + 0.5f);
+	}
+	
 	//用于修改ViewPager条目的滚动速度
-	class ViewPagerScroller extends Scroller {
+	private class ViewPagerScroller extends Scroller {
 		
 		public ViewPagerScroller(Context context) {
 			super(context);
@@ -307,7 +530,7 @@ public class AutoViewPager extends RelativeLayout {
 	}
 	
 	//ViewPager的适配器
-	class MyAdapter extends PagerAdapter{
+	private class MyAdapter extends PagerAdapter{
 
 		@Override
 		public int getCount() {
@@ -323,6 +546,7 @@ public class AutoViewPager extends RelativeLayout {
 		public Object instantiateItem(ViewGroup container, int position) {
 			position = position % mList.size();
 			ImageView view = mList.get(position);
+			view.setScaleType(ScaleType.CENTER_CROP);
 			container.addView(view);
 			return view;
 		}
@@ -331,94 +555,6 @@ public class AutoViewPager extends RelativeLayout {
 		public void destroyItem(ViewGroup container, int position, Object object) {
 			container.removeView((View) object);
 		}
-	}
-	
-
-	//初始化轮播图的指示器
-	private void initIndicator() {
-		
-		//生成指示器的选中样式
-		mPointSelected = new GradientDrawable();
-		mPointSelected.setShape(GradientDrawable.OVAL);
-		mPointSelected.setColor(selectPointColor);
-		mPointSelected.setSize(pointSize, pointSize);
-		
-		//生成指示器的未选中样式
-		mPointDefault = new GradientDrawable();
-		mPointDefault.setShape(GradientDrawable.OVAL);
-		mPointDefault.setColor(defaultPointColor);
-		mPointDefault.setSize(pointSize, pointSize);
-		
-		//生成指示器容器
-		mIndicator = new LinearLayout(getContext());
-		mIndicator.setOrientation(LinearLayout.HORIZONTAL);
-		LayoutParams indicatorParams = new RelativeLayout.LayoutParams(LayoutParams.WRAP_CONTENT, 
-																	   LayoutParams.WRAP_CONTENT);
-		//设置指示器的位置
-		indicatorParams.addRule(ALIGN_PARENT_BOTTOM);
-		switch (indicatorLocation) {
-		case INDICATOR_LOCATION_LEFT:
-			indicatorParams.addRule(ALIGN_PARENT_LEFT);
-			break;
-
-		case INDICATOR_LOCATION_CENTER:
-			indicatorParams.addRule(CENTER_HORIZONTAL);
-			break;
-			
-		case INDICATOR_LOCATION_RIGHT:
-			indicatorParams.addRule(ALIGN_PARENT_RIGHT);
-			break;
-		}
-		
-		//设置指示器的外边距
-		indicatorParams.topMargin = indicatorTop;
-		indicatorParams.bottomMargin = indicatorBottom;
-		indicatorParams.leftMargin = indicatorLeft;
-		indicatorParams.rightMargin = indicatorRight;
-		
-		//将指示器加入当前控件中
-		addView(mIndicator, indicatorParams);
-		
-		//将圆点加入容器内
-		int currentItem = mViewPager.getCurrentItem();
-		ImageView pointView;
-		for(int i=0; i<mList.size(); i++){
-			pointView = new ImageView(getContext());
-			if(i == currentItem){
-				pointView.setImageDrawable(mPointSelected);
-			}else{
-				pointView.setImageDrawable(mPointDefault);
-			}
-			//设置圆点之间的间距
-			android.widget.LinearLayout.LayoutParams pointParams = new LinearLayout.LayoutParams(
-											android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 
-											android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
-			pointParams.leftMargin = pointLeft;
-			pointParams.rightMargin = pointRight;
-			pointParams.bottomMargin = pointBottom;
-			pointParams.topMargin = pointTop;
-			mIndicator.addView(pointView, pointParams);
-		}
-		
-		//随着ViewPager的轮播修改指示器状态
-		mViewPager.setOnPageChangeListener(new OnPageChangeListener() {
-			@Override
-			public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels){}
-			@Override
-			public void onPageScrollStateChanged(int state){}
-			@Override
-			public void onPageSelected(int position) {
-				position = position % mList.size();
-				for(int i=0; i<mList.size(); i++){
-					ImageView point = (ImageView) mIndicator.getChildAt(i);
-					if(i == position ){
-						point.setImageDrawable(mPointSelected);
-					}else{
-						point.setImageDrawable(mPointDefault);
-					}
-				}
-			}
-		});
 	}
 	
 }
