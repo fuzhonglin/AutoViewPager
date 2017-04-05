@@ -7,4 +7,5 @@
 * public void setIndicatorLocation(int location) 设置指示器的位置
 * public void setPointSize(int size) 设置指示器圆点的半径
 * public void setPointColor(int selectColor, int defaultColor) 设置指示器圆点选中和未选中时的颜色
+* public void setPointInterval(int interval) 设置指示器圆点间的间距
 * public void setOnPagerClickListener(OnPagerClickListener onPagerClickListener设置ViewPager条目的点击事件监听
